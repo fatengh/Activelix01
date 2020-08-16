@@ -2,370 +2,304 @@ import os
 import unittest
 import json
 from flask_sqlalchemy import SQLAlchemy
-from models import setup_db, db_drop_and_create_all, Actor, Movie, Performance, db_drop_and_create_all
+from models import db_drop_and_create_all, setup_db, Member, Package, db_drop_and_create_all
 from config import bearer_tokens
 from sqlalchemy import desc
 from datetime import date
-#from app import create_app
+from app import create_app
 # Create dict with Authorization key and Bearer token as values. 
 # Later used by test classes as Header
 
-casting_assistant_auth_header = {
-    'Authorization': bearer_tokens['casting_assistant']
+customer_service_auth_header = {
+    'Authorization': bearer_tokens['customer_service']
 }
 
-casting_director_auth_header = {
-    'Authorization': bearer_tokens['casting_director']
+supervisor_auth_header = {
+    'Authorization': bearer_tokens['supervisor']
 }
 
-executive_producer_auth_header = {
-    'Authorization': bearer_tokens['executive_producer']
+manger_auth_header = {
+    'Authorization': bearer_tokens['manger']
 }
 
 
 #----------------------------------------------------------------------------#
-# RBAC Tests I: Missing Authorization | Missing Authentificaton
-#   Casting Assistant:
-#   - test_error_401_get_all_movies (Authorization)
-#   Casting Director:
-#   - test_error_401_delete_actor (Authorization)
-#   - test_error_403_delete_actor (Authentificaton)
-#   Executive Producer:
-#   - test_error_401_delete_movie (Authorization)
-#   - test_error_403_delete_movie (Authentificaton)
 
-# RBAC Tests II: Missing Authentificaton (i.e. missing permissions)
-
-#----------------------------------------------------------------------------#
-
-#----------------------------------------------------------------------------#
-# Setup of Unittest
-#----------------------------------------------------------------------------#
-
-class AgencyTestCase(unittest.TestCase):
-    """This class represents the agency test case"""
+class ActivelixTestCase(unittest.TestCase):
+    """This class represents the  test case"""
 
     def setUp(self):
         """Define test variables and initialize app."""
 
         self.app = create_app()
         self.client = self.app.test_client
-        self.database_path = os.environ['DATABASE_URL']
+        self.database_path = 'postgres://postgres:6210665@localhost:5432/activelix'
         setup_db(self.app, self.database_path)
         db_drop_and_create_all()
-        # binds the app to the current context
         with self.app.app_context():
             self.db = SQLAlchemy()
             self.db.init_app(self.app)
-            # create all tables
             self.db.create_all()
     
     def tearDown(self):
         """Executed after reach test"""
         pass
 
-# Test driven development (TDD): Create testcases first, then add endpoints to pass tests
 
 #----------------------------------------------------------------------------#
 # Tests for /members POST
 #----------------------------------------------------------------------------#
 
-    def test_create_new_actor(self):
-        """Test POST new actor."""
+    def test_create_new_member(self):
+        """Test POST new member."""
 
-        json_create_actor = {
-            'name' : 'Crisso',
-            'age' : 25
+        json_create_mamber = {
+            'name' : 'manar',
+            'phone' : 568796879
         } 
 
-        res = self.client().post('/members', json = json_create_actor, headers = casting_director_auth_header)
-        data = json.loads(res.data)
-
+        res = self.client().post('/members', json = json_create_mamber, headers = customer_service_auth_header)
+        
+       
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertEqual(data['created'], 2)
+        self.assertTrue(res.get_json()['success'], True)
+        
     
-    def test_error_401_new_actor(self):
-        """Test POST new actor w/o Authorization."""
+    def test_error_401_new_member(self):
+        """ POST new member without Authorization."""
 
-        json_create_actor = {
-            'name' : 'Crisso',
-            'age' : 25
+        json_create_mamber = {
+            'name' : 'manar',
+            'phone' : 568796879
         } 
 
-        res = self.client().post('/members', json = json_create_actor)
-        data = json.loads(res.data)
+        res = self.client().post('/members', json = json_create_mamber)
 
         self.assertEqual(res.status_code, 401)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Authorization header is expected.')
+        self.assertEqual(res.get_json()['message'], 'unauthorized')
 
-    def test_error_422_create_new_actor(self):
-        """Test Error POST new actor."""
+    def test_error_422_create_new_member(self):
+        """Error POST new member."""
 
-        json_create_actor_without_name = {
-            'age' : 25
+        json_member_without_name = {
+            'phone' : 568796879
         } 
 
-        res = self.client().post('/members', json = json_create_actor_without_name, headers = casting_director_auth_header)
-        data = json.loads(res.data)
+        res = self.client().post('/members', json = json_member_without_name, headers = customer_service_auth_header)
+       
 
         self.assertEqual(res.status_code, 422)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'no name provided.')
+        self.assertEqual(res.get_json()['success'], False)
 
-#----------------------------------------------------------------------------#
+
 # Tests for /members GET
 #----------------------------------------------------------------------------#
 
     def test_get_all_members(self):
         """Test GET all members."""
-        res = self.client().get('/members?page=1', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
-
+        res = self.client().get('/members?page=1', headers = customer_service_auth_header)
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertTrue(len(data['members']) > 0)
 
     def test_error_401_get_all_members(self):
-        """Test GET all members w/o Authorization."""
+        """ GET all members without Authorization."""
         res = self.client().get('/members?page=1')
-        data = json.loads(res.data)
+        
 
         self.assertEqual(res.status_code, 401)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Authorization header is expected.')
+        
 
     def test_error_404_get_members(self):
         """Test Error GET all members."""
-        res = self.client().get('/members?page=1125125125', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
+        res = self.client().get('/members?page=1125125125', headers = customer_service_auth_header)
+       
 
         self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'no members found in database.')
+        
 
-#----------------------------------------------------------------------------#
+
 # Tests for /members PATCH
 #----------------------------------------------------------------------------#
 
-    def test_edit_actor(self):
-        """Test PATCH existing members"""
-        json_edit_actor_with_new_age = {
-            'age' : 30
+    def test_edit_member(self):
+        """Test PATCH  members"""
+        json_edit_member_with_new_phone = {
+            'phone' : 547382045
         } 
-        res = self.client().patch('/members/1', json = json_edit_actor_with_new_age, headers = casting_director_auth_header)
-        data = json.loads(res.data)
-
+        res = self.client().patch('/members/1', json = json_edit_member_with_new_phone, headers = supervisor_auth_header)
+       
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertTrue(len(data['actor']) > 0)
-        self.assertEqual(data['updated'], 1)
+        self.assertEqual(res.get_json()['success'], True)
 
-    def test_error_400_edit_actor(self):
-            """Test PATCH with non json body"""
+    def test_error_400_edit_member(self):
+            """ PATCH without json body"""
 
-            res = self.client().patch('/members/123412', headers = casting_director_auth_header)
-            data = json.loads(res.data)
+            res = self.client().patch('/members/12345', headers = supervisor_auth_header)
+            
 
             self.assertEqual(res.status_code, 400)
-            self.assertFalse(data['success'])
-            self.assertEqual(data['message'] , 'request does not contain a valid JSON body.')
-
-    def test_error_404_edit_actor(self):
-        """Test PATCH with non valid id"""
-        json_edit_actor_with_new_age = {
-            'age' : 30
-        } 
-        res = self.client().patch('/members/123412', json = json_edit_actor_with_new_age, headers = casting_director_auth_header)
-        data = json.loads(res.data)
-
-        self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'Actor with id 123412 not found in database.')
+            
 
 #----------------------------------------------------------------------------#
 # Tests for /members DELETE
 #----------------------------------------------------------------------------#
 
-    def test_error_401_delete_actor(self):
-        """Test DELETE existing actor w/o Authorization"""
+    def test_error_401_delete_member(self):
+        """Test DELETE existing member without Authorization"""
         res = self.client().delete('/members/1')
-        data = json.loads(res.data)
 
         self.assertEqual(res.status_code, 401)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Authorization header is expected.')
+        
 
-    def test_error_403_delete_actor(self):
-        """Test DELETE existing actor with missing permissions"""
-        res = self.client().delete('/members/1', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
+    def test_error_403_delete_member(self):
+        """ DELETE  member with missing permissions"""
+        res = self.client().delete('/members/1', headers = customer_service_auth_header)
+        
 
         self.assertEqual(res.status_code, 403)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Permission not found.')
+        
 
-    def test_delete_actor(self):
-        """Test DELETE existing actor"""
-        res = self.client().delete('/members/1', headers = casting_director_auth_header)
-        data = json.loads(res.data)
+    def test_delete_member(self):
+        """Test DELETE existing member"""
+        res = self.client().delete('/members/1', headers = supervisor_auth_header)
+        
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertEqual(data['deleted'], '1')
+        
+        
 
-    def test_error_404_delete_actor(self):
-        """Test DELETE non existing actor"""
-        res = self.client().delete('/members/15125', headers = casting_director_auth_header)
-        data = json.loads(res.data)
+    def test_error_404_delete_member(self):
+        """Test DELETE non existing member"""
+        res = self.client().delete('/members/43234', headers = supervisor_auth_header)
+        
 
         self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'Actor with id 15125 not found in database.')
+        
 
+
+# Tests for /package POST
 #----------------------------------------------------------------------------#
-# Tests for /movies POST
-#----------------------------------------------------------------------------#
 
-    def test_create_new_movie(self):
-        """Test POST new movie."""
+    def test_create_new_package(self):
+        """Test POST new package."""
 
-        json_create_movie = {
-            'title' : 'Crisso Movie',
-            'release_date' : date.today()
+        json_create_package = {
+            'name' : 'gold',
+            'duration' : '4 months',
+            'price' : 300
         } 
 
-        res = self.client().post('/movies', json = json_create_movie, headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+        res = self.client().post('/packages', json = json_create_package, headers = manger_auth_header)
+        
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertEqual(data['created'], 2)
+        self.assertTrue(res.get_json()['success'], True)
+       
 
-    def test_error_422_create_new_movie(self):
-        """Test Error POST new movie."""
+    def test_error_422_create_new_package(self):
+        """ Error POST new package."""
 
-        json_create_movie_without_name = {
-            'release_date' : date.today()
+        json_create_package_without_name = {
+            'duration' : '5 months'
         } 
 
-        res = self.client().post('/movies', json = json_create_movie_without_name, headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+        res = self.client().post('/packages', json = json_create_package_without_name, headers = manger_auth_header)
 
         self.assertEqual(res.status_code, 422)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'no title provided.')
+        
 
-#----------------------------------------------------------------------------#
-# Tests for /movies GET
+
+# Tests for /package GET
 #----------------------------------------------------------------------------#
 
-    def test_get_all_movies(self):
-        """Test GET all movies."""
-        res = self.client().get('/movies?page=1', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
+    def test_get_all_package(self):
+        """Test GET all package."""
+        res = self.client().get('/packages?page=1', headers = customer_service_auth_header)
+        
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertTrue(len(data['movies']) > 0)
+        
 
-    def test_error_401_get_all_movies(self):
-        """Test GET all movies w/o Authorization."""
-        res = self.client().get('/movies?page=1')
-        data = json.loads(res.data)
+    def test_error_401_get_all_package(self):
+        """Test GET all package without Authorization."""
+        res = self.client().get('/packages?page=1')
+        
 
         self.assertEqual(res.status_code, 401)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Authorization header is expected.')
+       
 
-    def test_error_404_get_movies(self):
-        """Test Error GET all movies."""
-        res = self.client().get('/movies?page=1125125125', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
+    def test_error_404_get_package(self):
+        """Test Error GET all package."""
+        res = self.client().get('/packages?page=12345678', headers = customer_service_auth_header)
+      
 
         self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'no movies found in database.')
+        
 
-#----------------------------------------------------------------------------#
-# Tests for /movies PATCH
+
+# Tests for /package PATCH
 #----------------------------------------------------------------------------#
 
-    def test_edit_movie(self):
-        """Test PATCH existing movies"""
-        json_edit_movie = {
-            'release_date' : date.today()
+    def test_edit_package(self):
+        """Test PATCH existing package"""
+        json_edit_package = {
+            'duration' : '5 months'
         } 
-        res = self.client().patch('/movies/1', json = json_edit_movie, headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+        res = self.client().patch('/packages/1', json = json_edit_package, headers = manger_auth_header)
+        
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertTrue(len(data['movie']) > 0)
+       
 
-    def test_error_400_edit_movie(self):
+    def test_error_400_edit_package(self):
         """Test PATCH with non valid id json body"""
-        res = self.client().patch('/movies/1', headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+        res = self.client().patch('/packages/1', headers = manger_auth_header)
+       
 
         self.assertEqual(res.status_code, 400)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'request does not contain a valid JSON body.')
-
-    def test_error_404_edit_movie(self):
+        
+    def test_error_404_edit_package(self):
         """Test PATCH with non valid id"""
-        json_edit_movie = {
-            'release_date' : date.today()
+        json_edit_package = {
+            'duration' : '5 months'
         } 
-        res = self.client().patch('/movies/123412', json = json_edit_movie, headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+        res = self.client().patch('/package/123456', json = json_edit_package, headers = manger_auth_header)
+       
 
         self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'Movie with id 123412 not found in database.')
 
-#----------------------------------------------------------------------------#
-# Tests for /movies DELETE
+
+# Tests for /packages DELETE
 #----------------------------------------------------------------------------#
 
-    def test_error_401_delete_movie(self):
-        """Test DELETE existing movie w/o Authorization"""
-        res = self.client().delete('/movies/1')
-        data = json.loads(res.data)
+    def test_error_401_delete_package(self):
+        """Test DELETE existing package without Authorization"""
+        res = self.client().delete('/packages/1')
 
         self.assertEqual(res.status_code, 401)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Authorization header is expected.')
 
-    def test_error_403_delete_movie(self):
+    def test_error_403_delete_package(self):
         """Test DELETE existing movie with wrong permissions"""
-        res = self.client().delete('/movies/1', headers = casting_assistant_auth_header)
-        data = json.loads(res.data)
+        res = self.client().delete('/packages/1', headers = customer_service_auth_header)
 
         self.assertEqual(res.status_code, 403)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'], 'Permission not found.')
 
-    def test_delete_movie(self):
-        """Test DELETE existing movie"""
-        res = self.client().delete('/movies/1', headers = executive_producer_auth_header)
-        data = json.loads(res.data)
+    def test_delete_package(self):
+        """Test DELETE existing package"""
+        res = self.client().delete('/packages/1', headers = manger_auth_header)
+      
 
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(data['success'])
-        self.assertEqual(data['deleted'], '1')
+        
+        
 
-    def test_error_404_delete_movie(self):
-        """Test DELETE non existing movie"""
-        res = self.client().delete('/movies/151251', headers = executive_producer_auth_header) 
-        data = json.loads(res.data)
+    def test_error_404_delete_package(self):
+        """Test DELETE non existing package"""
+        res = self.client().delete('/packages/45678', headers = manger_auth_header) 
+       
 
         self.assertEqual(res.status_code, 404)
-        self.assertFalse(data['success'])
-        self.assertEqual(data['message'] , 'Movie with id 151251 not found in database.')
+        
 
-# Make the tests conveniently executable.
-# From app directory, run 'python test_app.py' to start tests
+
 if __name__ == "__main__":
     unittest.main()
