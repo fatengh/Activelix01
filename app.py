@@ -3,8 +3,8 @@ from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from auth import AuthError, requires_auth
-from models import db_drop_and_create_all, setup_db, Member, Package, Participation
-from config import pagination
+from models import db_drop_and_create_all, setup_db, Member, Package
+import json
 
 DEFAULT_OFFSET = 1
 DEFAULT_LIMIT = 20
@@ -21,38 +21,29 @@ def paginate_response(request, selection):
   return paginated_selection
 
 def create_app(test_config=None):
-  '''create and configure the app'''
+  '''create app and configure it'''
   
-  # Create and configure the app
+ 
   app = Flask(__name__)
   setup_db(app)
   CORS(app)
+  db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
 
-
-  # db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
-
-  #----------------------------------------------------------------------------#
-  # CORS (API configuration)
-  #----------------------------------------------------------------------------#
-
-  
-  # CORS Headers 
-
-
-  #----------------------------------------------------------------------------#
-  # Custom Functions
-  #----------------------------------------------------------------------------#
-
-
-  #----------------------------------------------------------------------------#
+  @app.after_request
+  def after_request(response):
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,true')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PATCH,POST,DELETE,OPTIONS')
+    return response
   #  API Endpoints
-  #  ----------------------------------------------------------------
-  #  NOTE:  For explanation of each endpoint, please have look at the README.md file. 
-  #         DOC Strings only contain short description and list of test classes 
   #----------------------------------------------------------------------------#
+  @app.route('/')
+  def index():
+    return jsonify({
+      'message': 'Udacity capstone project Activelix.',
+      'success': True
+    })
 
-  #----------------------------------------------------------------------------#
-  # Endpoint /memberss GET/POST/DELETE/PATCH
+  # memberss GET/POST/DELETE/PATCH
   #----------------------------------------------------------------------------#
   @app.route('/members', methods=['GET'])
   @requires_auth('get:members')
@@ -64,55 +55,64 @@ def create_app(test_config=None):
       })
     except:
       abort(422)
-
+ #------------------------------------------------
   @app.route('/members', methods=['POST'])
   @requires_auth('post:members')
   def insert_members(payload):
     body = request.json
+
+    if not body:
+          abort(400, {'message': 'request does not contain a valid JSON body.'})
+
     name = body.get('name', None)
-    age = body.get('age', None)
-    gender = body.get('gender', None)
+    phone = body.get('phone', None)
 
-    # Abort 400 if the name in the request matches any of the saved Member names
-    if name in list(map(Member.get_name, Member.query.all())):
-      abort(400, 'This name is already taken. Please provide a new name and try again.')
+    # Set gender to value or to 'Other' if not given
+    gender = body.get('gender', 'Other')
 
-    # Abort 400 if any fields are missing
-    if any(arg is None for arg in [name, age, gender]) or '' in [name, age, gender]:
-      abort(400, 'name, age and gender are required fields.')
+    # abort if one of these are missing with appropiate error message
+    if not name:
+      abort(422, {'message': 'no name provided.'})
 
-    # Create and insert a new member
-    new_member = member(name=name, age=age, gender=gender)
+    if not phone:
+      abort(422, {'message': 'no phone provided.'})
+
+    # Create new instance of Actor & insert it.
+    new_member = (Member(
+          name = name, 
+          phone = phone,
+          gender = gender
+          ))
     new_member.insert()
 
-    # Return the newly created member
     return jsonify({
       'success': True,
-      'members': [Member.query.get(new_member.id).format()]
+      'created': [Member.query.get(new_member.id).format()]
     })
-     
+
+ #------------------------------------------------   
   @app.route('/members/<member_id>', methods=['PATCH'])
   @requires_auth('patch:members')
   def edit_members(payload, member_id):
     member = Member.query.get(member_id)
 
-    # Abort 404 if the member was not found
+    # member was not found
     if member is None:
       abort(404)
 
     body = request.json
     name = body.get('name', None)
     age = body.get('age', None)
-    gender = body.get('gender', None)
+    phone = body.get('phone', None)
 
     # Abort 400 if any fields are missing
-    if any(arg is None for arg in [name, age, gender]) or '' in [name, age, gender]:
-      abort(400, 'name, age and gender are required fields.')
+    if any(arg is None for arg in [name, age, phone]) or '' in [name, age, phone]:
+      abort(400, 'name, age and phone are required fields.')
 
-    # Update the member with the requested fields
+    # Update the member 
     member.name = name
     member.age = age
-    member.gender = gender
+    member.phone = phone
     member.update()
 
     # Return the updated member
@@ -121,13 +121,13 @@ def create_app(test_config=None):
       'members': [Member.query.get(member_id).format()]
     })
 
-
+ #------------------------------------------------
   @app.route('/members/<member_id>', methods=['DELETE'])
   @requires_auth('delete:members')
   def delete_members(payload, member_id):
     member = Member.query.get(member_id)
 
-    # Abort 404 if the member was not found
+    #  member was not found
     if member is None:
       abort(404)
 
@@ -139,8 +139,8 @@ def create_app(test_config=None):
       'delete': member_id
     })
 
-  #----------------------------------------------------------------------------#
-  # Endpoint /packages GET/POST/DELETE/PATCH
+  
+  # packages GET/POST/DELETE/PATCH
   #----------------------------------------------------------------------------#
   @app.route('/packages', methods=['GET'])
   @requires_auth('get:packages')
@@ -149,60 +149,62 @@ def create_app(test_config=None):
       'success': True,
       'packages': paginate_response(request, Package.query.order_by(Package.id).all())
       })
-
+#------------------------------------------------
   @app.route('/packages', methods=['POST'])
   @requires_auth('post:packages')
   def insert_packages(payload):
     body = request.json
-    title = body.get('title', None)
-    release_date = body.get('release_date', None)
+    name = body.get('name', None)
+    duration = body.get('duration', None)
+    price = body.get('price', None)
 
-    # Abort 400 if the title in the request matches any of the saved Package titles
-    if title in list(map(Package.get_title, Package.query.all())):
-      abort(400, 'This title is already taken. Please provide a new title and try again.')
+    if any(arg is None for arg in [name, duration, price]) or '' in [name, duration, price]:
+      abort(400, 'name , duration and price are required fields.')
 
-    # Abort 400 if any fields are missing
-    if any(arg is None for arg in [title, release_date]) or '' in [title, release_date]:
-      abort(400, 'title and release_date are required fields.')
-
-    # Create and insert a new Package
-    new_package = Package(title=title, release_date=release_date)
+    new_package = Package(name=name, duration=duration, price=price)
     new_package.insert()
 
-    # Return the newly created package
     return jsonify({
       'success': True,
       'packages': [Package.query.get(new_package.id).format()]
     })
 
-
+#------------------------------------------------
   @app.route('/packages/<package_id>', methods=['PATCH'])
-  @requires_auth('patcht:packages')
+  @requires_auth('patch:packages')
   def edit_packages(payload, package_id):
-    package = Package.query.get(package_id)
-
-    # Abort 404 if the package was not found
-    if package is None:
-      abort(404)
-
     body = request.json
-    title = body.get('title', None)
-    release_date = body.get('release_date', None)
+    if not package_id:
+      abort(400, {'message': 'please append an package id to the request url.'})
 
-    # Abort 400 if any fields are missing
-    if any(arg is None for arg in [title, release_date]) or '' in [title, release_date]:
-      abort(400, 'title and release_date are required fields.')
+    if not body:
+      abort(400, {'message': 'request does not contain a valid JSON body.'})
 
-    # Update the package with the requested fields
-    package.title = title
-    package.release_date = release_date
-    package.update()
+    
+    package_to_update = Package.query.filter(Package.id == package_id).one_or_none()
 
-    # Return the updated package
+    if not package_to_update:
+      abort(404, {'message': 'packagewith id {} not found in database.'.format(package_id)})
+
+    
+    name = body.get('name', package_to_update.name)
+    duration = body.get('duration', package_to_update.duration)
+    price = body.get('price',package_to_update.price)
+
+    
+    package_to_update.name = name
+    package_to_update.duration = duration
+    package_to_update.price = price
+
+    
+    package_to_update.update()
+
     return jsonify({
       'success': True,
-      'packages': [Package.query.get(package_id).format()]
+      'edited': package_to_update.id,
+      'package' : [package_to_update.format()]
     })
+   #------------------------------------------------
   @app.route('/packages/<package_id>', methods=['DELETE'])
   @requires_auth('delete:packages')
   def delete_packages(payload, package_id):
@@ -220,7 +222,7 @@ def create_app(test_config=None):
       'delete': package_id
     })
 
-  #----------------------------------------------------------------------------#
+
   # Error Handlers
   #----------------------------------------------------------------------------#
 
@@ -263,4 +265,4 @@ def create_app(test_config=None):
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
