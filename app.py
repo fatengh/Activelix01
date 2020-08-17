@@ -5,6 +5,8 @@ from flask_cors import CORS
 from auth import AuthError, requires_auth
 from models import db_drop_and_create_all, setup_db, Member, Package
 import json
+from flask_migrate import Migrate
+
 
 DEFAULT_OFFSET = 1
 DEFAULT_LIMIT = 20
@@ -25,6 +27,8 @@ def create_app(test_config=None):
   
  
   app = Flask(__name__)
+  db = SQLAlchemy(app)
+  migrate = Migrate(app, db)
   setup_db(app)
   CORS(app)
   db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
