@@ -92,7 +92,7 @@ class Member(db.Model):
 #----------------------------------------------------------------------------#
 
 class Package(db.Model):  
-  __tablename__ = 'packages'
+  __tablename__ = 'packag'
 
   id = Column(Integer, primary_key=True)
   name = Column(String(80), unique=True, nullable=False)
