@@ -42,14 +42,12 @@ def create_app(test_config=None):
   #----------------------------------------------------------------------------#
   @app.route('/')
   def index():
-    return jsonify({
-      'message': 'Udacity capstone project Activelix.',
-      'success': True
-    })
+    return ("WELCOME TO ACTIVELIX COMPANY")
 
+  
   # memberss GET/POST/DELETE/PATCH
   #----------------------------------------------------------------------------#
-  @app.route('/members', methods=['GET'])
+  @app.route('/members', methods=['GET'])#
   @requires_auth('get:members')
   def get_members(payload):
     try:
