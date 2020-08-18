@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 import json
 from datetime import date
 from config import database_setup
+#from app import app
 
 
 
@@ -44,6 +45,13 @@ def db_init_records():
         price = 200
         ))
 
+     #new_participation = Participation.insert().values(
+      #  Package_id = new_package.id,
+       # Member_id = new_member.id,
+        #member_fee = 500.00
+        #)
+
+
 
     new_member.insert()
     new_package.insert()
@@ -51,10 +59,12 @@ def db_init_records():
 
 
 # Participation N:N 
-#----------------------------------------------------------------------------#
+#----------------------------------------------------------------------------
 
-
-
+# association table
+#Participation = Table('Participation', db.Model.metadata,
+#Column('Package_id', Integer, ForeignKey('packages.id')),
+#Column('Member_id', Integer, ForeignKey('members.id')))
 # members Model 
 #----------------------------------------------------------------------------#
 
@@ -99,6 +109,8 @@ class Package(db.Model):
   name = Column(String(80), unique=True, nullable=False)
   duration = Column(String, nullable=False)
   price = Column(Integer, nullable=False) 
+  #member = db.relationship('Member', secondary=Participation, backref=db.backref('participation', lazy='joined'))
+
 
   def __repr__(self):
     return f'<Package {self.id} {self.name}>'

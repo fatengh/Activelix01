@@ -28,7 +28,7 @@ def create_app(test_config=None):
  
   app = Flask(__name__)
   db = SQLAlchemy(app)
-  migrate = Migrate(app, db)
+  migrate = Migrate(app)
   setup_db(app)
   CORS(app)
   db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
