@@ -202,9 +202,9 @@ def create_app(test_config=None):
     package_to_update.update()
 
     return jsonify({
+      'package': [Package.query.get(package_id).format()],
       'success': True,
-      'edited': package_to_update.id,
-      'package' : [package_to_update.format()]
+      
     })
    #------------------------------------------------
   @app.route('/packages/<package_id>', methods=['DELETE'])
