@@ -10,9 +10,12 @@ from config import auth0_config
 # Auth0 Config
 #----------------------------------------------------------------------------#
 
-AUTH0_DOMAIN = 'coffepro.us.auth0.com'
+#AUTH0_DOMAIN = 'coffepro.us.auth0.com'
+#ALGORITHMS = ['RS256']
+#API_AUDIENCE = 'capstoneapi'
+AUTH0_DOMAIN = os.environ.get('AUTH0_DOMAIN')
 ALGORITHMS = ['RS256']
-API_AUDIENCE = 'capstoneapi'
+API_AUDIENCE = os.environ.get('API_AUDIENCE')
 
 ## AuthError Exception
 '''
