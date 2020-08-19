@@ -31,7 +31,7 @@ def create_app(test_config=None):
   migrate = Migrate(app)
   setup_db(app)
   CORS(app)
-  db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
+  #db_drop_and_create_all() # uncomment this if you want to start a new database on app refresh
 
   @app.after_request
   def after_request(response):
